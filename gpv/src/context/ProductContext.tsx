@@ -1,22 +1,31 @@
 // context/ProductContext.tsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  arrayUnion,
+  arrayRemove,
+} from 'firebase/firestore';
+import { db } from '../firebase';
 import type { Product, Review } from '../types';
 import type { ReactNode } from 'react';
 
 interface ProductContextType {
   products: Product[];
-  addProduct: (product: Omit<Product, 'id'>) => void;
-  updateProduct: (id: string, product: Partial<Product>) => void;
-  deleteProduct: (id: string) => void;
-  addReview: (productId: string, review: Omit<Review, 'id' | 'date'>) => void;
-  deleteReview: (productId: string, reviewId: string) => void;
+  loading: boolean;
+  addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
+  updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  addReview: (productId: string, review: Omit<Review, 'id' | 'date'>) => Promise<void>;
+  deleteReview: (productId: string, reviewId: string) => Promise<void>;
 }
 
-const STORAGE_KEY = 'gpv_products_v2';
-
-const sampleProducts: Product[] = [
+const sampleProducts: Omit<Product, 'id'>[] = [
   {
-    id: '1',
     name: 'Luxury Gold Perfume',
     price: 45000,
     rating: 4.5,
@@ -30,7 +39,6 @@ const sampleProducts: Product[] = [
     ]
   },
   {
-    id: '2',
     name: 'Golden Rose Lipstick',
     price: 12500,
     rating: 4,
@@ -44,7 +52,6 @@ const sampleProducts: Product[] = [
     ]
   },
   {
-    id: '3',
     name: 'Diamond Shine Foundation',
     price: 18500,
     rating: 4.8,
@@ -54,32 +61,10 @@ const sampleProducts: Product[] = [
     description: 'Full-coverage foundation with a flawless natural finish. Dermatologist tested and suitable for all skin tones.',
     reviews: [
       { id: 'r5', user: 'Blessing E.', comment: 'Perfect match for my dark skin tone. Finally!', rating: 5, date: '2024-02-12' },
-      { id: 'r6', user: 'Ngozi P.', comment: 'Light on the skin but full coverage. I\'m obsessed.', rating: 5, date: '2024-02-22' },
+      { id: 'r6', user: 'Ngozi P.', comment: "Light on the skin but full coverage. I'm obsessed.", rating: 5, date: '2024-02-22' },
     ]
   }
 ];
-
-const safeLoadProducts = (): Product[] | null => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch {
-    console.warn('Failed to load products from storage.');
-  }
-  return null;
-};
-
-const safeSaveProducts = (products: Product[]) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-  } catch (e) {
-    console.warn(
-      'Storage quota exceeded. Your images may be too large. ' +
-      'Products are still visible this session but may not persist after refresh. ' +
-      'Try uploading smaller or compressed images.'
-    );
-  }
-};
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
@@ -90,79 +75,77 @@ export const useProducts = () => {
 };
 
 export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [products, setProducts] = useState<Product[]>(() => {
-    const saved = safeLoadProducts();
-    return saved ?? sampleProducts;
-  });
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [seeded, setSeeded] = useState(false);
 
-  // Save whenever products change
+  // Real-time listener — any change in Firestore instantly updates all devices
   useEffect(() => {
-    safeSaveProducts(products);
-  }, [products]);
+    const unsub = onSnapshot(collection(db, 'products'), snapshot => {
+      const fetched: Product[] = snapshot.docs.map(d => ({
+        id: d.id,
+        ...(d.data() as Omit<Product, 'id'>)
+      }));
 
-  // Seed storage if empty
-  useEffect(() => {
-    if (!localStorage.getItem(STORAGE_KEY)) {
-      safeSaveProducts(sampleProducts);
-    }
+      // Seed sample products only if the collection is completely empty
+      if (fetched.length === 0 && !seeded) {
+        setSeeded(true);
+        seedSampleProducts();
+      } else {
+        setProducts(fetched);
+        setLoading(false);
+      }
+    });
+
+    return () => unsub();
   }, []);
 
-  const addProduct = (product: Omit<Product, 'id'>) => {
-    const newProduct: Product = { ...product, id: Date.now().toString() };
-    setProducts(prev => {
-      const updated = [...prev, newProduct];
-      safeSaveProducts(updated);
-      return updated;
-    });
+  const seedSampleProducts = async () => {
+    try {
+      await Promise.all(
+        sampleProducts.map(p => addDoc(collection(db, 'products'), p))
+      );
+    } catch (err) {
+      console.error('Failed to seed sample products:', err);
+      setLoading(false);
+    }
   };
 
-  const updateProduct = (id: string, updatedFields: Partial<Product>) => {
-    setProducts(prev => {
-      const updated = prev.map(p => p.id === id ? { ...p, ...updatedFields } : p);
-      safeSaveProducts(updated);
-      return updated;
-    });
+  const addProduct = async (product: Omit<Product, 'id'>) => {
+    await addDoc(collection(db, 'products'), product);
   };
 
-  const deleteProduct = (id: string) => {
-    setProducts(prev => {
-      const updated = prev.filter(p => p.id !== id);
-      safeSaveProducts(updated);
-      return updated;
-    });
+  const updateProduct = async (id: string, updatedFields: Partial<Product>) => {
+    await updateDoc(doc(db, 'products', id), updatedFields);
   };
 
-  const addReview = (productId: string, review: Omit<Review, 'id' | 'date'>) => {
+  const deleteProduct = async (id: string) => {
+    await deleteDoc(doc(db, 'products', id));
+  };
+
+  const addReview = async (productId: string, review: Omit<Review, 'id' | 'date'>) => {
     const newReview: Review = {
       ...review,
       id: Date.now().toString(),
       date: new Date().toISOString().split('T')[0]
     };
-    setProducts(prev => {
-      const updated = prev.map(p =>
-        p.id === productId
-          ? { ...p, reviews: [...p.reviews, newReview] }
-          : p
-      );
-      safeSaveProducts(updated);
-      return updated;
+    await updateDoc(doc(db, 'products', productId), {
+      reviews: arrayUnion(newReview)
     });
   };
 
-  const deleteReview = (productId: string, reviewId: string) => {
-    setProducts(prev => {
-      const updated = prev.map(p =>
-        p.id === productId
-          ? { ...p, reviews: p.reviews.filter(r => r.id !== reviewId) }
-          : p
-      );
-      safeSaveProducts(updated);
-      return updated;
+  const deleteReview = async (productId: string, reviewId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    const reviewToRemove = product.reviews.find(r => r.id === reviewId);
+    if (!reviewToRemove) return;
+    await updateDoc(doc(db, 'products', productId), {
+      reviews: arrayRemove(reviewToRemove)
     });
   };
 
   return (
-    <ProductContext.Provider value={{ products, addProduct, updateProduct, deleteProduct, addReview, deleteReview }}>
+    <ProductContext.Provider value={{ products, loading, addProduct, updateProduct, deleteProduct, addReview, deleteReview }}>
       {children}
     </ProductContext.Provider>
   );
