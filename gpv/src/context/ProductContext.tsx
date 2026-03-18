@@ -8,7 +8,6 @@ import {
   deleteDoc,
   doc,
   arrayUnion,
-  arrayRemove,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { Product, Review } from '../types';
@@ -35,24 +34,25 @@ export const useProducts = () => {
 export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [seeded, setSeeded] = useState(false);
 
-  // Real-time listener — any change in Firestore instantly updates all devices
+  // Real-time listener — updates all devices instantly whenever Firestore changes
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'products'), snapshot => {
-      const fetched: Product[] = snapshot.docs.map(d => ({
-        id: d.id,
-        ...(d.data() as Omit<Product, 'id'>)
-      }));
-
-      // Seed sample products only if the collection is completely empty
-      if (fetched.length === 0 && !seeded) {
-        setSeeded(true);
-      } else {
-        setProducts(fetched);
+    const unsub = onSnapshot(
+      collection(db, 'products'),
+      snapshot => {
+        const fetched: Product[] = snapshot.docs.map(d => ({
+          id: d.id,
+          ...(d.data() as Omit<Product, 'id'>)
+        }));
+        setProducts(fetched);  // works whether empty or not
+        setLoading(false);     // always stop loading once Firestore responds
+      },
+      error => {
+        // Fires if Firestore rules block access or network fails
+        console.error('Firestore error:', error);
         setLoading(false);
       }
-    });
+    );
 
     return () => unsub();
   }, []);
@@ -81,17 +81,27 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   const deleteReview = async (productId: string, reviewId: string) => {
+    // Instead of arrayRemove (which requires exact object match and fails silently),
+    // we filter locally then overwrite the whole reviews array — always reliable.
     const product = products.find(p => p.id === productId);
     if (!product) return;
-    const reviewToRemove = product.reviews.find(r => r.id === reviewId);
-    if (!reviewToRemove) return;
+
+    const updatedReviews = product.reviews.filter(r => r.id !== reviewId);
     await updateDoc(doc(db, 'products', productId), {
-      reviews: arrayRemove(reviewToRemove)
+      reviews: updatedReviews
     });
   };
 
   return (
-    <ProductContext.Provider value={{ products, loading, addProduct, updateProduct, deleteProduct, addReview, deleteReview }}>
+    <ProductContext.Provider value={{
+      products,
+      loading,
+      addProduct,
+      updateProduct,
+      deleteProduct,
+      addReview,
+      deleteReview
+    }}>
       {children}
     </ProductContext.Provider>
   );
