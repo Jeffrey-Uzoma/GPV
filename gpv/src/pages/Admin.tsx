@@ -27,6 +27,7 @@ const Admin: React.FC = () => {
   const [reviewList, setReviewList] = useState<Omit<Review, 'id' | 'date'>[]>([]);
   const [reviewForm, setReviewForm] = useState(emptyReviewForm);
   const [expandedProductReviews, setExpandedProductReviews] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
@@ -52,7 +53,7 @@ const Admin: React.FC = () => {
     setReviewList(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!editingProduct && !formData.image) {
@@ -60,38 +61,47 @@ const Admin: React.FC = () => {
       return;
     }
 
-    const today = new Date().toISOString().split('T')[0];
-    const builtReviews: Review[] = reviewList.map((r, i) => ({
-      ...r,
-      id: `admin-${Date.now()}-${i}`,
-      date: today
-    }));
+    setSubmitting(true);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const builtReviews: Review[] = reviewList.map((r, i) => ({
+        ...r,
+        id: `admin-${Date.now()}-${i}`,
+        date: today
+      }));
 
-    if (editingProduct) {
-      updateProduct(editingProduct.id, {
-        name: formData.name,
-        price: Number(formData.price),
-        rating: Number(formData.rating),
-        quantity: Number(formData.quantity),
-        image: formData.image || editingProduct.image,
-        category: formData.category,
-        description: formData.description,
-        reviews: [...editingProduct.reviews, ...builtReviews]
-      });
-    } else {
-      addProduct({
-        name: formData.name,
-        price: Number(formData.price),
-        rating: Number(formData.rating),
-        quantity: Number(formData.quantity),
-        image: formData.image,
-        category: formData.category,
-        description: formData.description,
-        reviews: builtReviews
-      });
+      if (editingProduct) {
+        const existingReviews = editingProduct.reviews || [];
+        await updateProduct(editingProduct.id, {
+          name: formData.name,
+          price: Number(formData.price),
+          rating: Number(formData.rating),
+          quantity: Number(formData.quantity),
+          image: formData.image || editingProduct.image,
+          category: formData.category,
+          description: formData.description,
+          reviews: [...existingReviews, ...builtReviews]
+        });
+      } else {
+        await addProduct({
+          name: formData.name,
+          price: Number(formData.price),
+          rating: Number(formData.rating),
+          quantity: Number(formData.quantity),
+          image: formData.image,
+          category: formData.category,
+          description: formData.description,
+          reviews: builtReviews
+        });
+      }
+
+      resetForm();
+    } catch (err) {
+      console.error('Failed to save product:', err);
+      alert('Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
-
-    resetForm();
   };
 
   const resetForm = () => {
@@ -118,15 +128,15 @@ const Admin: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this product? This cannot be undone.')) {
-      deleteProduct(id);
+      await deleteProduct(id);
     }
   };
 
   const totalProducts = products.length;
   const totalStock = products.reduce((a, p) => a + p.quantity, 0);
-  const totalReviews = products.reduce((a, p) => a + p.reviews.length, 0);
+  const totalReviews = products.reduce((a, p) => a + (p.reviews || []).length, 0);
 
   return (
     <div className="min-h-screen bg-gray-50 pt-[5em]">
@@ -347,9 +357,10 @@ const Admin: React.FC = () => {
               <div className="flex gap-3">
                 <button
                   type="submit"
-                  className="bg-amber-400 text-amber-950 px-8 py-3 rounded-full font-bold text-sm hover:bg-amber-300 transition-all shadow hover:shadow-md"
+                  disabled={submitting}
+                  className="bg-amber-400 text-amber-950 px-8 py-3 rounded-full font-bold text-sm hover:bg-amber-300 transition-all shadow hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {editingProduct ? 'Update Product' : 'Add Product'}
+                  {submitting ? 'Saving...' : editingProduct ? 'Update Product' : 'Add Product'}
                 </button>
                 <button
                   type="button"
@@ -392,115 +403,118 @@ const Admin: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {products.map(product => (
-                    <React.Fragment key={product.id}>
-                      <tr className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={product.image}
-                              alt={product.name}
-                              className="w-12 h-12 rounded-xl object-cover border border-gray-100 shrink-0"
-                            />
-                            <div>
-                              <p className="font-semibold text-sm text-gray-800 leading-snug">{product.name}</p>
-                              <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{product.description}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-xs font-medium bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full border border-amber-100">
-                            {product.category}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 font-bold text-gray-800 text-sm">
-                          ₦{product.price.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                            product.quantity > 10
-                              ? 'bg-green-50 text-green-700'
-                              : product.quantity > 0
-                              ? 'bg-yellow-50 text-yellow-700'
-                              : 'bg-red-50 text-red-700'
-                          }`}>
-                            {product.quantity}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <button
-                            onClick={() =>
-                              setExpandedProductReviews(expandedProductReviews === product.id ? null : product.id)
-                            }
-                            className="text-xs text-amber-700 hover:text-amber-900 font-semibold underline underline-offset-2"
-                          >
-                            {product.reviews.length} review{product.reviews.length !== 1 ? 's' : ''}
-                          </button>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <button
-                              onClick={() => handleEdit(product)}
-                              className="text-xs text-blue-600 hover:text-blue-800 font-semibold px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(product.id)}
-                              className="text-xs text-red-600 hover:text-red-800 font-semibold px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-
-                      {/* Expanded reviews row */}
-                      {expandedProductReviews === product.id && (
-                        <tr>
-                          <td colSpan={6} className="bg-amber-50 px-6 py-4">
-                            <p className="text-xs font-semibold text-amber-800 uppercase tracking-widest mb-3">
-                              Reviews for {product.name}
-                            </p>
-                            {product.reviews.length === 0 ? (
-                              <p className="text-sm text-gray-400">No reviews yet.</p>
-                            ) : (
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                                {product.reviews.map(review => (
-                                  <div
-                                    key={review.id}
-                                    className="flex items-start justify-between bg-white rounded-xl p-3 border border-amber-100 group"
-                                  >
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                        <span className="font-semibold text-xs text-amber-900">{review.user}</span>
-                                        <span className="text-amber-400 text-xs">{'★'.repeat(review.rating)}</span>
-                                        <span className="text-xs text-gray-400">{review.date}</span>
-                                      </div>
-                                      <p className="text-xs text-gray-600 line-clamp-2">{review.comment}</p>
-                                    </div>
-                                    <button
-                                      onClick={() => {
-                                        if (window.confirm('Delete this review?')) {
-                                          deleteReview(product.id, review.id);
-                                        }
-                                      }}
-                                      className="ml-2 shrink-0 text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
-                                      title="Delete review"
-                                    >
-                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                      </svg>
-                                    </button>
-                                  </div>
-                                ))}
+                  {products.map(product => {
+                    const reviews = product.reviews || [];
+                    return (
+                      <React.Fragment key={product.id}>
+                        <tr className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={product.image}
+                                alt={product.name}
+                                className="w-12 h-12 rounded-xl object-cover border border-gray-100 shrink-0"
+                              />
+                              <div>
+                                <p className="font-semibold text-sm text-gray-800 leading-snug">{product.name}</p>
+                                <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{product.description}</p>
                               </div>
-                            )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-xs font-medium bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full border border-amber-100">
+                              {product.category}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 font-bold text-gray-800 text-sm">
+                            ₦{product.price.toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                              product.quantity > 10
+                                ? 'bg-green-50 text-green-700'
+                                : product.quantity > 0
+                                ? 'bg-yellow-50 text-yellow-700'
+                                : 'bg-red-50 text-red-700'
+                            }`}>
+                              {product.quantity}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <button
+                              onClick={() =>
+                                setExpandedProductReviews(expandedProductReviews === product.id ? null : product.id)
+                              }
+                              className="text-xs text-amber-700 hover:text-amber-900 font-semibold underline underline-offset-2"
+                            >
+                              {reviews.length} review{reviews.length !== 1 ? 's' : ''}
+                            </button>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => handleEdit(product)}
+                                className="text-xs text-blue-600 hover:text-blue-800 font-semibold px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(product.id)}
+                                className="text-xs text-red-600 hover:text-red-800 font-semibold px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
-                      )}
-                    </React.Fragment>
-                  ))}
+
+                        {/* Expanded reviews row */}
+                        {expandedProductReviews === product.id && (
+                          <tr>
+                            <td colSpan={6} className="bg-amber-50 px-6 py-4">
+                              <p className="text-xs font-semibold text-amber-800 uppercase tracking-widest mb-3">
+                                Reviews for {product.name}
+                              </p>
+                              {reviews.length === 0 ? (
+                                <p className="text-sm text-gray-400">No reviews yet.</p>
+                              ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                  {reviews.map(review => (
+                                    <div
+                                      key={review.id}
+                                      className="flex items-start justify-between bg-white rounded-xl p-3 border border-amber-100 group"
+                                    >
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                          <span className="font-semibold text-xs text-amber-900">{review.user}</span>
+                                          <span className="text-amber-400 text-xs">{'★'.repeat(review.rating)}</span>
+                                          <span className="text-xs text-gray-400">{review.date}</span>
+                                        </div>
+                                        <p className="text-xs text-gray-600 line-clamp-2">{review.comment}</p>
+                                      </div>
+                                      <button
+                                        onClick={async () => {
+                                          if (window.confirm('Delete this review?')) {
+                                            await deleteReview(product.id, review.id);
+                                          }
+                                        }}
+                                        className="ml-2 shrink-0 text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
+                                        title="Delete review"
+                                      >
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
