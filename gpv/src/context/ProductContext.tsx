@@ -24,48 +24,6 @@ interface ProductContextType {
   deleteReview: (productId: string, reviewId: string) => Promise<void>;
 }
 
-const sampleProducts: Omit<Product, 'id'>[] = [
-  {
-    name: 'Luxury Gold Perfume',
-    price: 45000,
-    rating: 4.5,
-    quantity: 15,
-    image: 'https://images.unsplash.com/photo-1594035910387-fea47794261f?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-    category: 'Perfumes',
-    description: 'A luxurious fragrance with deep notes of vanilla, amber, and oud. Long-lasting and captivating.',
-    reviews: [
-      { id: 'r1', user: 'Chioma O.', comment: 'Absolutely divine! Lasts all day and gets so many compliments.', rating: 5, date: '2024-02-15' },
-      { id: 'r2', user: 'Adaeze M.', comment: 'Worth every kobo. My signature scent now.', rating: 5, date: '2024-02-18' },
-    ]
-  },
-  {
-    name: 'Golden Rose Lipstick',
-    price: 12500,
-    rating: 4,
-    quantity: 30,
-    image: 'https://images.unsplash.com/photo-1586495777744-4413f21062fa?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-    category: 'Cosmetics',
-    description: 'Long-lasting matte lipstick with a subtle golden shimmer finish. Available in 12 shades.',
-    reviews: [
-      { id: 'r3', user: 'Amara N.', comment: 'Beautiful color, stays on for hours without touch-up!', rating: 4, date: '2024-02-10' },
-      { id: 'r4', user: 'Funke A.', comment: 'Love the packaging and the colour payoff.', rating: 4, date: '2024-02-20' },
-    ]
-  },
-  {
-    name: 'Diamond Shine Foundation',
-    price: 18500,
-    rating: 4.8,
-    quantity: 20,
-    image: 'https://images.unsplash.com/photo-1631730319495-5b08986f0ab2?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-    category: 'Cosmetics',
-    description: 'Full-coverage foundation with a flawless natural finish. Dermatologist tested and suitable for all skin tones.',
-    reviews: [
-      { id: 'r5', user: 'Blessing E.', comment: 'Perfect match for my dark skin tone. Finally!', rating: 5, date: '2024-02-12' },
-      { id: 'r6', user: 'Ngozi P.', comment: "Light on the skin but full coverage. I'm obsessed.", rating: 5, date: '2024-02-22' },
-    ]
-  }
-];
-
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
 export const useProducts = () => {
@@ -90,7 +48,6 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
       // Seed sample products only if the collection is completely empty
       if (fetched.length === 0 && !seeded) {
         setSeeded(true);
-        seedSampleProducts();
       } else {
         setProducts(fetched);
         setLoading(false);
@@ -99,17 +56,6 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     return () => unsub();
   }, []);
-
-  const seedSampleProducts = async () => {
-    try {
-      await Promise.all(
-        sampleProducts.map(p => addDoc(collection(db, 'products'), p))
-      );
-    } catch (err) {
-      console.error('Failed to seed sample products:', err);
-      setLoading(false);
-    }
-  };
 
   const addProduct = async (product: Omit<Product, 'id'>) => {
     await addDoc(collection(db, 'products'), product);
