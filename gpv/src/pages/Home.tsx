@@ -5,8 +5,24 @@ import { useProducts } from '../context/ProductContext';
 import ProductCard from '../components/ProductCard';
 import Footer from '../components/Footer';
 
+const SkeletonCard = () => (
+  <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm animate-pulse">
+    <div className="w-full h-56 bg-gray-200" />
+    <div className="p-5 space-y-3">
+      <div className="h-3 bg-gray-200 rounded-full w-1/3" />
+      <div className="h-4 bg-gray-200 rounded-full w-3/4" />
+      <div className="h-3 bg-gray-200 rounded-full w-full" />
+      <div className="h-3 bg-gray-200 rounded-full w-2/3" />
+      <div className="flex justify-between items-center pt-2">
+        <div className="h-5 bg-gray-200 rounded-full w-1/4" />
+        <div className="h-9 bg-gray-200 rounded-full w-1/3" />
+      </div>
+    </div>
+  </div>
+);
+
 const Home: React.FC = () => {
-  const { products } = useProducts();
+  const { products, loading } = useProducts();
   const featuredProducts = products.slice(0, 3);
 
   const features = [
@@ -97,7 +113,6 @@ const Home: React.FC = () => {
           </div>
         </div>
 
-        {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-amber-400 animate-bounce">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -126,7 +141,14 @@ const Home: React.FC = () => {
             <p className="text-amber-600 text-xs font-bold uppercase tracking-widest mb-2">Hand-Picked for You</p>
             <h2 className="text-3xl md:text-4xl font-bold text-amber-900">Featured Products</h2>
           </div>
-          {featuredProducts.length > 0 ? (
+
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          ) : featuredProducts.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {featuredProducts.map(product => (
                 <ProductCard key={product.id} product={product} />
@@ -138,6 +160,7 @@ const Home: React.FC = () => {
               <p>Products coming soon. Check back shortly.</p>
             </div>
           )}
+
           <div className="text-center mt-12">
             <Link
               to="/products"
@@ -175,7 +198,7 @@ const Home: React.FC = () => {
         </div>
       </div>
 
-      {/* Testimonial / Trust section */}
+      {/* Testimonials */}
       <div className="bg-amber-900 py-16 px-4">
         <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 text-center">
           <p className="text-amber-400 text-xs font-bold uppercase tracking-widest mb-4">Why Customers Love Us</p>
@@ -183,7 +206,7 @@ const Home: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
             {[
               { q: 'The perfume lasted all day and the delivery was super fast. Highly recommend!', name: 'Aisha B., Lagos' },
-              { q: 'I\'ve been buying from GPV for 2 years. The quality is always consistent and authentic.', name: 'Ngozi A., Abuja' },
+              { q: "I've been buying from GPV for 2 years. The quality is always consistent and authentic.", name: 'Ngozi A., Abuja' },
               { q: 'Ordered via WhatsApp and it was so easy. Got my foundation in 2 days. Love it!', name: 'Favour O., Port Harcourt' },
             ].map(t => (
               <div key={t.name} className="bg-amber-950/40 border border-amber-700/40 rounded-2xl p-6">
@@ -193,7 +216,6 @@ const Home: React.FC = () => {
               </div>
             ))}
           </div>
-
           <div className="mt-12">
             <Link
               to="/products"
@@ -204,7 +226,7 @@ const Home: React.FC = () => {
           </div>
         </div>
       </div>
-      <Footer/>
+      <Footer />
     </div>
   );
 };
