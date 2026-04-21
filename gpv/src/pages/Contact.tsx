@@ -43,7 +43,7 @@ const Contact: React.FC = () => {
         </svg>
       ),
       label: 'Email',
-      value: 'info@goldenpremium.ng',
+      value: 'jeffreyzhxade@gmail.com',
       sub: 'We reply within 24 hours'
     },
     {
