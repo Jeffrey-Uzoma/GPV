@@ -22,7 +22,7 @@ const Checkout: React.FC = () => {
   });
 
   const [copied, setCopied] = useState(false);
-  const [orderPlaced, setOrderPlaced] = useState(false);
+  const [orderPlaced] = useState(false);
 
   if (items.length === 0 && !orderPlaced) {
     navigate('/cart');
