@@ -12,6 +12,7 @@ import Admin from './pages/Admin';
 import Login from './pages/Login';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import ScrollToTop from './components/ScrollToTop';
 import './index.css';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
       <ProductProvider>
         <CartProvider>
           <Router>
+            <ScrollToTop />
             <div className="min-h-screen bg-linear-to-br from-amber-50 to-orange-50">
               <Navbar />
               <Routes>
