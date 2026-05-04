@@ -2,12 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import GPVLOGO from '../assets/GPV logo.png';
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { isAuthenticated, logout } = useAuth();
+  const { totalItems } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -16,7 +18,6 @@ const Navbar: React.FC = () => {
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener('scroll', onScroll);
-    // Reset scrolled state when route changes
     setScrolled(window.scrollY > 10);
     return () => window.removeEventListener('scroll', onScroll);
   }, [location.pathname]);
@@ -40,7 +41,6 @@ const Navbar: React.FC = () => {
   const isActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
 
-  // Transparent only on homepage when not scrolled; solid everywhere else
   const isTransparent = isHome && !scrolled;
 
   return (
@@ -49,9 +49,9 @@ const Navbar: React.FC = () => {
         isTransparent ? 'bg-transparent' : 'bg-amber-950 shadow-2xl'
       }`}
     >
-      {/* Top accent line — only visible when solid */}
+      {/* Top accent line */}
       <div
-        className={`h-0.5 bg-linear-to-r from-amber-400 via-yellow-300 to-amber-400 transition-opacity duration-300 ${
+        className={`h-0.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 transition-opacity duration-300 ${
           isTransparent ? 'opacity-0' : 'opacity-100'
         }`}
       />
@@ -93,8 +93,25 @@ const Navbar: React.FC = () => {
             ))}
           </div>
 
-          {/* Desktop auth */}
+          {/* Desktop right side — cart + auth */}
           <div className="hidden md:flex items-center gap-3">
+
+            {/* Cart icon with badge */}
+            <Link
+              to="/cart"
+              className="relative p-2 text-amber-200 hover:text-amber-300 transition-colors"
+              aria-label="Shopping cart"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 bg-amber-400 text-amber-950 text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center leading-none">
+                  {totalItems > 99 ? '99+' : totalItems}
+                </span>
+              )}
+            </Link>
+
             {isAuthenticated ? (
               <>
                 <Link
@@ -126,20 +143,36 @@ const Navbar: React.FC = () => {
             )}
           </div>
 
-          {/* Mobile hamburger */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden text-amber-300 p-2 rounded-lg hover:bg-amber-800 transition-colors"
-            aria-label="Toggle menu"
-          >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              {isOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          {/* Mobile right — cart icon + hamburger */}
+          <div className="md:hidden flex items-center gap-2">
+            <Link
+              to="/cart"
+              className="relative p-2 text-amber-200 hover:text-amber-300 transition-colors"
+              aria-label="Shopping cart"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 bg-amber-400 text-amber-950 text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center leading-none">
+                  {totalItems > 99 ? '99+' : totalItems}
+                </span>
               )}
-            </svg>
-          </button>
+            </Link>
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="text-amber-300 p-2 rounded-lg hover:bg-amber-800 transition-colors"
+              aria-label="Toggle menu"
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                {isOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
