@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import type { Product } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../context/ProductContext';
+import { useCart } from '../context/CartContext';
 
 interface ProductCardProps {
   product: Product;
@@ -28,11 +29,13 @@ const WHATSAPP_NUMBER = '2348104264550';
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { isAuthenticated } = useAuth();
   const { addReview, deleteReview } = useProducts();
+  const { addToCart } = useCart();
 
   const [showReviews, setShowReviews] = useState(false);
   const [reviewForm, setReviewForm] = useState({ user: '', comment: '', rating: 5 });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
 
   const handleWhatsApp = () => {
     const message =
@@ -41,6 +44,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       `📦 Category: ${product.category}\n\n` +
       `Please confirm availability and provide payment details. Thank you!`;
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const handleAddToCart = () => {
+    addToCart(product);
+    setAddedToCart(true);
+    setTimeout(() => setAddedToCart(false), 2000);
   };
 
   const handleSubmitReview = (e: React.FormEvent) => {
@@ -58,9 +67,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     setTimeout(() => setSubmitted(false), 3000);
   };
 
-  const avgRating = product.reviews.length > 0
+  const avgRating = product.reviews && product.reviews.length > 0
     ? product.reviews.reduce((acc, r) => acc + r.rating, 0) / product.reviews.length
     : product.rating;
+
+  const reviews = product.reviews || [];
 
   const stockStatus = product.quantity > 10
     ? { label: 'In Stock', classes: 'bg-green-50 text-green-700 border border-green-200' }
@@ -97,7 +108,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <div className="flex items-center gap-2 mb-3">
           <StarRating rating={avgRating} />
           <span className="text-sm text-gray-500">
-            {avgRating.toFixed(1)} · {product.reviews.length} {product.reviews.length === 1 ? 'review' : 'reviews'}
+            {avgRating.toFixed(1)} · {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
           </span>
         </div>
 
@@ -110,34 +121,64 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </span>
         </div>
 
-        {/* WhatsApp CTA */}
-        <button
-          onClick={handleWhatsApp}
-          disabled={product.quantity === 0}
-          className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-3 rounded-xl font-semibold text-sm transition-all hover:shadow-lg hover:shadow-green-200 active:scale-95"
-        >
-          <svg className="w-5 h-5 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.45-1.272.61-1.447c.159-.175.347-.219.462-.219s.256.004.368.018c.118.014.287-.045.449.346.162.391.55 1.347.598 1.444.049.097.081.202.016.327-.064.126-.096.202-.193.313-.097.111-.203.247-.29.332-.097.096-.197.201-.085.394.112.193.498.822 1.07 1.332.735.655 1.356.858 1.55.954.194.096.306.08.419-.049.112-.128.481-.563.61-.757.128-.194.256-.162.432-.097.176.065 1.119.528 1.311.624.192.096.32.144.368.224.048.08.048.464-.096.87z" />
-          </svg>
-          {product.quantity === 0 ? 'Out of Stock' : 'Buy on WhatsApp — ₦' + product.price.toLocaleString()}
-        </button>
+        {/* Action buttons */}
+        <div className="flex gap-2 mb-1">
+          {/* Add to Cart */}
+          <button
+            onClick={handleAddToCart}
+            disabled={product.quantity === 0}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 border ${
+              product.quantity === 0
+                ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                : addedToCart
+                ? 'bg-amber-100 text-amber-800 border-amber-300'
+                : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 hover:shadow-md'
+            }`}
+          >
+            {addedToCart ? (
+              <>
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Added!
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                Add to Cart
+              </>
+            )}
+          </button>
+
+          {/* WhatsApp */}
+          <button
+            onClick={handleWhatsApp}
+            disabled={product.quantity === 0}
+            className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-3 rounded-xl font-semibold text-sm transition-all hover:shadow-lg hover:shadow-green-200 active:scale-95"
+          >
+            <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.45-1.272.61-1.447c.159-.175.347-.219.462-.219s.256.004.368.018c.118.014.287-.045.449.346.162.391.55 1.347.598 1.444.049.097.081.202.016.327-.064.126-.096.202-.193.313-.097.111-.203.247-.29.332-.097.096-.197.201-.085.394.112.193.498.822 1.07 1.332.735.655 1.356.858 1.55.954.194.096.306.08.419-.049.112-.128.481-.563.61-.757.128-.194.256-.162.432-.097.176.065 1.119.528 1.311.624.192.096.32.144.368.224.048.08.048.464-.096.87z" />
+            </svg>
+            WhatsApp
+          </button>
+        </div>
 
         {/* Reviews toggle */}
         <button
           onClick={() => setShowReviews(v => !v)}
           className="mt-3 w-full text-center text-sm text-amber-700 hover:text-amber-900 font-medium py-2 rounded-xl hover:bg-amber-50 transition-colors"
         >
-          {showReviews ? '▲ Hide Reviews' : `▼ View Reviews (${product.reviews.length})`}
+          {showReviews ? '▲ Hide Reviews' : `▼ View Reviews (${reviews.length})`}
         </button>
 
         {/* Reviews section */}
         {showReviews && (
           <div className="mt-3 border-t border-gray-100 pt-4">
-
-            {/* Existing reviews */}
-            {product.reviews.length > 0 ? (
+            {reviews.length > 0 ? (
               <div className="space-y-3 mb-4 max-h-72 overflow-y-auto pr-1">
-                {product.reviews.map(review => (
+                {reviews.map(review => (
                   <div key={review.id} className="bg-gray-50 rounded-xl p-3 relative group">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -167,7 +208,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               <p className="text-sm text-gray-400 text-center py-3 mb-4">No reviews yet. Be the first!</p>
             )}
 
-            {/* Leave a review form */}
             <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
               <p className="text-sm font-semibold text-amber-900 mb-3">Leave a Review</p>
               {submitted ? (
@@ -184,7 +224,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     required
                     className="w-full px-3 py-2 text-sm border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
                   />
-                  {/* Star picker */}
                   <div className="flex items-center gap-1">
                     <span className="text-xs text-gray-500 mr-1">Rating:</span>
                     {[1, 2, 3, 4, 5].map(star => (
