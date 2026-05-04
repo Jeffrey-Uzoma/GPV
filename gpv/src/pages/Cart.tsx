@@ -140,16 +140,16 @@ const Cart: React.FC = () => {
                   <span>Subtotal</span>
                   <span className="font-semibold text-gray-800">₦{subtotal.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-sm text-gray-500">
+                <div className="flex justify-between text-sm text-gray-600">
                   <span>Delivery fee</span>
-                  <span className="text-gray-400 italic text-xs self-center">Calculated at checkout</span>
+                  <span className="font-semibold text-gray-800">₦{DELIVERY_FEE.toLocaleString()}</span>
                 </div>
               </div>
 
               <div className="border-t border-gray-100 mt-4 pt-4 mb-6">
                 <div className="flex justify-between font-bold text-amber-900">
-                  <span>Subtotal</span>
-                  <span className="text-xl">₦{subtotal.toLocaleString()}</span>
+                  <span>Total</span>
+                  <span className="text-xl">₦{(subtotal + DELIVERY_FEE).toLocaleString()}</span>
                 </div>
               </div>
 
