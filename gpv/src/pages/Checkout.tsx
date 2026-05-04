@@ -65,6 +65,9 @@ const Checkout: React.FC = () => {
       `✅ *Total Paid: ₦${total.toLocaleString()}*\n\n` +
       `I'm sending my payment receipt now. Please confirm. Thank you! 🙏`;
 
+    // Set order as placed
+    setOrderPlaced(true);
+    
     window.open(
       `https://wa.me/${BUSINESS_WHATSAPP}?text=${encodeURIComponent(message)}`,
       '_blank'
@@ -83,6 +86,12 @@ const Checkout: React.FC = () => {
     if (!isFormValid) return;
     setStep('payment');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDoneShop = () => {
+    clearCart();
+    setOrderPlaced(true);
+    navigate('/products');
   };
 
   // ─── Payment step ──────────────────────────────────────────────
@@ -241,10 +250,7 @@ const Checkout: React.FC = () => {
           </div>
 
           <button
-            onClick={() => {
-              clearCart();
-              navigate('/products');
-            }}
+            onClick={handleDoneShop}
             className="w-full text-sm text-gray-400 hover:text-gray-600 py-3 transition-colors"
           >
             Done — Return to Shop
