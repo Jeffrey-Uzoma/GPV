@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import Footer from '../components/Footer';
 
-const DELIVERY_FEE = 4000;
+// const DELIVERY_FEE = 4000;
 
 const Cart: React.FC = () => {
   const { items, removeFromCart, updateQuantity, subtotal } = useCart();
